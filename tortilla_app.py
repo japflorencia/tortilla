@@ -5,6 +5,7 @@ from oauth2client.service_account import ServiceAccountCredentials
 import random
 import json
 from io import StringIO
+from datetime import datetime
 
 # Configuración de la conexión con Google Sheets
 scope = ["https://spreadsheets.google.com/feeds", "https://www.googleapis.com/auth/drive"]
@@ -29,7 +30,8 @@ def cargar_pagos():
     return {registro['nombre']: registro['conteo'] for registro in registros}
 
 def cargar_historial():
-    return historial_sheet.col_values(1)
+    registros = historial_sheet.get_all_records()
+    return registros
 
 def guardar_persona(nombre):
     personas_sheet.append_row([nombre])
@@ -47,7 +49,10 @@ def registrar_pago(nombre):
         pagos_sheet.update_cell(cell.row, 2, pagos[nombre])
     else:
         pagos_sheet.append_row([nombre, 1])
-    historial_sheet.append_row([nombre])
+    
+    fecha = datetime.now().strftime("%Y-%m-%d")
+    historial_sheet.append_row([nombre, fecha])
+
 
 # Interfaz de la aplicación
 st.title("¿Quién paga la tortilla?")
