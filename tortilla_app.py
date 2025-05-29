@@ -147,8 +147,12 @@ else:
 
 
 
-# Gráfico comparativo entre asistencias e invitaciones (seguro)
-if 'df_balance' in locals() and not df_balance.empty:
+# Gráfico comparativo entre asistencias e invitaciones (robusto)
+if (
+    'df_balance' in locals() and 
+    not df_balance.empty and 
+    {'asistencias', 'creditos'}.issubset(df_balance.columns)
+):
     df_melted = df_balance.melt(id_vars='nombre', value_vars=['asistencias', 'creditos'],
                                 var_name='tipo', value_name='cantidad')
 
@@ -162,4 +166,4 @@ if 'df_balance' in locals() and not df_balance.empty:
 
     st.altair_chart(chart_comparativo, use_container_width=True)
 else:
-    st.info("No hay datos disponibles para generar la comparativa de asistencias e invitaciones.")
+    st.info("No hay datos suficientes para generar la comparativa de asistencias e invitaciones.")
