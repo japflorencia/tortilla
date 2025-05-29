@@ -87,13 +87,13 @@ if st.button("Calcular quién paga"):
         st.success(f"Hoy paga **{pagador}** 🍳")
         st.dataframe(balance)
 
-        # Mostrar gráfico
-        resumen = balance[['nombre', 'asistencias', 'creditos']].melt(id_vars='nombre', var_name='tipo', value_name='valor')
-        chart = alt.Chart(resumen).mark_bar().encode(
-            x=alt.X('nombre:N', title='Persona'),
-            y=alt.Y('valor:Q', title='Cantidad'),
-            color=alt.Color('tipo:N', title='Tipo')
-        ).properties(
-            title='Resumen de Asistencias e Invitaciones'
-        )
-        st.altair_chart(chart, use_container_width=True)
+# Mostrar gráfico
+resumen = balance[['nombre', 'asistencias', 'creditos']].melt(id_vars='nombre', var_name='tipo', value_name='valor')
+chart = alt.Chart(resumen).mark_bar().encode(
+    x=alt.X('nombre:N', title='Persona'),
+    y=alt.Y('valor:Q', title='Cantidad'),
+    color=alt.Color('tipo:N', title='Tipo')
+).properties(
+    title='Resumen de Asistencias e Invitaciones'
+)
+st.altair_chart(chart, use_container_width=True)
