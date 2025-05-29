@@ -72,10 +72,11 @@ if st.button("Calcular quién paga"):
             asistencias[persona] = asistencias.get(persona, 0)
             creditos[persona] = creditos.get(persona, 0)
 
+        nombres = list(set(participantes) | set(asistencias.keys()) | set(creditos.keys()))
         balance = pd.DataFrame({
-            'nombre': list(set(asistencias.keys()) | set(creditos.keys())),
-            'asistencias': [asistencias.get(p, 0) for p in participantes],
-            'creditos': [creditos.get(p, 0) for p in participantes]
+            'nombre': nombres,
+            'asistencias': [asistencias.get(p, 0) for p in nombres],
+            'creditos': [creditos.get(p, 0) for p in nombres]
         })
         balance['deuda'] = balance['asistencias'] - balance['creditos']
         balance = balance.sort_values(by='deuda', ascending=False)
