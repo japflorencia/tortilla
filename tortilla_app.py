@@ -128,17 +128,19 @@ df_estadisticas = pd.DataFrame.from_dict(estadisticas, orient='index').reset_ind
 st.write(df_estadisticas)
 
 # Gráfico comparativo
-st.header("Gráfico comparativo")
-chart = alt.Chart(df_estadisticas).mark_bar().encode(
-    x='nombre',
-    y='asistencias',
-    color='nombre'
-).properties(title='Asistencias por persona')
-st.altair_chart(chart, use_container_width=True)
+if df_estadisticas.empty:
+    st.warning("No hay datos suficientes para mostrar estadísticas. Añade registros para ver los gráficos.")
+else:
+    chart = alt.Chart(df_estadisticas).mark_bar().encode(
+        x='nombre',
+        y='asistencias',
+        color='nombre'
+    ).properties(title='Asistencias por persona')
+    st.altair_chart(chart, use_container_width=True)
 
-chart_pagos = alt.Chart(df_estadisticas).mark_bar().encode(
-    x='nombre',
-    y='pagos',
-    color='nombre'
-).properties(title='Pagos por persona')
-st.altair_chart(chart_pagos, use_container_width=True)
+    chart_pagos = alt.Chart(df_estadisticas).mark_bar().encode(
+        x='nombre',
+        y='pagos',
+        color='nombre'
+    ).properties(title='Pagos por persona')
+    st.altair_chart(chart_pagos, use_container_width=True)
