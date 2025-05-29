@@ -144,3 +144,19 @@ else:
         color='nombre'
     ).properties(title='Pagos por persona')
     st.altair_chart(chart_pagos, use_container_width=True)
+
+
+
+# Gráfico comparativo entre asistencias e invitaciones
+df_melted = df_balance.melt(id_vars='nombre', value_vars=['asistencias', 'creditos'],
+                            var_name='tipo', value_name='cantidad')
+
+chart_comparativo = alt.Chart(df_melted).mark_bar().encode(
+    x=alt.X('nombre:N', title='Persona'),
+    y=alt.Y('cantidad:Q', title='Cantidad'),
+    color=alt.Color('tipo:N', title='Tipo')
+).properties(
+    title='Comparativa: Asistencias vs Personas Invitadas'
+)
+
+st.altair_chart(chart_comparativo, use_container_width=True)
