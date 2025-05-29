@@ -2,9 +2,7 @@ import streamlit as st
 import pandas as pd
 import gspread
 from oauth2client.service_account import ServiceAccountCredentials
-import random
 import json
-from io import StringIO
 from datetime import datetime
 import altair as alt
 
@@ -15,155 +13,86 @@ creds = ServiceAccountCredentials.from_json_keyfile_dict(creds_dict, scope)
 client = gspread.authorize(creds)
 
 # Abrir la hoja de cálculo
-spreadsheet = client.open("TortillaPagos")
+sh = client.open("TortillaPagos")
 
 # Cargar datos de las hojas
-personas_sheet = spreadsheet.worksheet("personas")
-pagos_sheet = spreadsheet.worksheet("pagos")
-historial_sheet = spreadsheet.worksheet("historial")
-estadisticas_sheet = spreadsheet.worksheet("estadisticas")
+ws_participantes = sh.worksheet("personas")
+ws_historial = sh.worksheet("historial")
 
-# Funciones para manejar los datos
-def cargar_personas():
-    return personas_sheet.col_values(1)
+# Cargar participantes
+participantes = ws_participantes.col_values(1)
 
-def cargar_pagos():
-    registros = pagos_sheet.get_all_records()
-    return {registro['nombre']: registro['conteo'] for registro in registros}
+# Función para guardar historial
+def guardar_evento(fecha, pagador, asistentes):
+    fila = [pagador, fecha, len(asistentes), ", ".join(asistentes)]
+    ws_historial.append_row(fila)
 
-def cargar_historial():
-    registros = historial_sheet.get_all_records()
-    return registros
+# --- GESTIÓN DE PARTICIPANTES ---
+st.sidebar.header("Gestión de Participantes")
 
-def cargar_estadisticas():
-    registros = estadisticas_sheet.get_all_records()
-    return {registro['nombre']: {'asistencias': registro['asistencias'], 'pagos': registro['pagos']} for registro in registros}
+nuevo = st.sidebar.text_input("Añadir participante")
+if st.sidebar.button("Añadir"):
+    if nuevo and nuevo not in participantes:
+        ws_participantes.append_row([nuevo])
+        st.sidebar.success(f"{nuevo} añadido.")
+        st.rerun()
 
-def guardar_persona(nombre):
-    personas_sheet.append_row([nombre])
+eliminar = st.sidebar.selectbox("Eliminar participante", [""] + participantes)
+if st.sidebar.button("Eliminar") and eliminar:
+    celda = ws_participantes.find(eliminar)
+    if celda:
+        ws_participantes.delete_rows(celda.row)
+        st.sidebar.success(f"{eliminar} eliminado.")
+        st.rerun()
 
-def eliminar_persona(nombre):
-    cell = personas_sheet.find(nombre)
-    if cell:
-        personas_sheet.delete_row(cell.row)
+# --- NUEVO EVENTO ---
+st.header("Nuevo Evento de Tortilla")
 
-def registrar_pago(nombre, n_asistentes, asistentes):
-    pagos = cargar_pagos()
-    if nombre in pagos:
-        pagos[nombre] += 1
-        cell = pagos_sheet.find(nombre)
-        pagos_sheet.update_cell(cell.row, 2, pagos[nombre])
+asistentes_hoy = st.multiselect("¿Quién asistió hoy?", options=participantes)
+
+if st.button("Calcular quién paga"):
+    if not asistentes_hoy:
+        st.warning("Selecciona al menos un asistente.")
     else:
-        pagos_sheet.append_row([nombre, 1])
-    fecha = datetime.now().strftime("%Y-%m-%d")
-    historial_sheet.append_row([nombre, fecha, n_asistentes, ', '.join(asistentes)])
-    actualizar_estadisticas(asistentes, nombre)
+        # Cargar historial
+        datos_historial = ws_historial.get_all_records()
+        eventos = pd.DataFrame(datos_historial)
+        eventos['asistentes'] = eventos['asistentes'].apply(lambda x: [p.strip() for p in x.split(',') if p.strip()])
 
-def actualizar_estadisticas(asistentes, pagador):
-    estadisticas = cargar_estadisticas()
-    for asistente in asistentes:
-        if asistente in estadisticas:
-            estadisticas[asistente]['asistencias'] += 1
-        else:
-            estadisticas[asistente] = {'asistencias': 1, 'pagos': 0}
-    if pagador in estadisticas:
-        estadisticas[pagador]['pagos'] += 1
-    else:
-        estadisticas[pagador] = {'asistencias': 0, 'pagos': 1}
-    estadisticas_sheet.clear()
-    estadisticas_sheet.append_row(['nombre', 'asistencias', 'pagos'])
-    for nombre, datos in estadisticas.items():
-        estadisticas_sheet.append_row([nombre, datos['asistencias'], datos['pagos']])
+        # Calcular asistencias
+        asistencias = {}
+        creditos = {}
 
-# Interfaz de la aplicación
-st.title("¿Quién paga la tortilla?")
+        for _, row in eventos.iterrows():
+            for persona in row['asistentes']:
+                asistencias[persona] = asistencias.get(persona, 0) + 1
+            creditos[row['pagador']] = creditos.get(row['pagador'], 0) + len(row['asistentes'])
 
-# Sección para añadir y eliminar personas
-st.header("Gestión de personas")
-nombre = st.text_input("Nombre de la persona")
-if st.button("Añadir persona"):
-    guardar_persona(nombre)
-    st.success(f"{nombre} ha sido añadido a la lista.")
-if st.button("Eliminar persona"):
-    eliminar_persona(nombre)
-    st.success(f"{nombre} ha sido eliminado de la lista.")
+        for persona in asistentes_hoy:
+            asistencias[persona] = asistencias.get(persona, 0)
+            creditos[persona] = creditos.get(persona, 0)
 
-# Mostrar lista de personas
-st.subheader("Lista de personas")
-personas = cargar_personas()
-st.write(personas)
+        balance = pd.DataFrame({
+            'nombre': list(set(asistencias.keys()) | set(creditos.keys())),
+            'asistencias': [asistencias.get(p, 0) for p in participantes],
+            'creditos': [creditos.get(p, 0) for p in participantes]
+        })
+        balance['deuda'] = balance['asistencias'] - balance['creditos']
+        balance = balance.sort_values(by='deuda', ascending=False)
 
-# Sección para marcar asistentes
-st.header("Asistentes")
-asistentes = st.multiselect("Selecciona los asistentes", personas)
+        pagador = balance.iloc[0]['nombre']
+        guardar_evento(str(date.today()), pagador, asistentes_hoy)
 
-# Selección del pagador
-if st.button("¿Quién paga?"):
-    if asistentes:
-        pagos = cargar_pagos()
-        estadisticas = cargar_estadisticas()
-        min_ratio = min(
-            (estadisticas.get(p, {'pagos': 0, 'asistencias': 0})['pagos'] / max(1, estadisticas.get(p, {'pagos': 0, 'asistencias': 0})['asistencias']))
-            for p in asistentes
+        st.success(f"Hoy paga **{pagador}** 🍳")
+        st.dataframe(balance)
+
+        # Mostrar gráfico
+        resumen = balance[['nombre', 'asistencias', 'creditos']].melt(id_vars='nombre', var_name='tipo', value_name='valor')
+        chart = alt.Chart(resumen).mark_bar().encode(
+            x=alt.X('nombre:N', title='Persona'),
+            y=alt.Y('valor:Q', title='Cantidad'),
+            color=alt.Color('tipo:N', title='Tipo')
+        ).properties(
+            title='Resumen de Asistencias e Invitaciones'
         )
-        candidatos = [
-            p for p in asistentes
-            if (estadisticas.get(p, {'pagos': 0, 'asistencias': 0})['pagos'] / max(1, estadisticas.get(p, {'pagos': 0, 'asistencias': 0})['asistencias'])) == min_ratio
-        ]
-        pagador = random.choice(candidatos)
-        registrar_pago(pagador, len(asistentes), asistentes)
-        st.success(f"{pagador} paga la siguiente tortilla.")
-    else:
-        st.error("Selecciona al menos un asistente.")
-
-# Mostrar historial de pagos
-st.header("Historial de pagos")
-historial = cargar_historial()
-st.write(historial)
-
-# Mostrar estadísticas
-st.header("Estadísticas")
-estadisticas = cargar_estadisticas()
-df_estadisticas = pd.DataFrame.from_dict(estadisticas, orient='index').reset_index().rename(columns={'index': 'nombre'})
-st.write(df_estadisticas)
-
-# Gráfico comparativo
-if df_estadisticas.empty:
-    st.warning("No hay datos suficientes para mostrar estadísticas. Añade registros para ver los gráficos.")
-else:
-    chart = alt.Chart(df_estadisticas).mark_bar().encode(
-        x='nombre',
-        y='asistencias',
-        color='nombre'
-    ).properties(title='Asistencias por persona')
-    st.altair_chart(chart, use_container_width=True)
-
-    chart_pagos = alt.Chart(df_estadisticas).mark_bar().encode(
-        x='nombre',
-        y='pagos',
-        color='nombre'
-    ).properties(title='Pagos por persona')
-    st.altair_chart(chart_pagos, use_container_width=True)
-
-
-
-# Gráfico comparativo entre asistencias e invitaciones (robusto)
-if (
-    'df_balance' in locals() and 
-    not df_balance.empty and 
-    {'asistencias', 'creditos'}.issubset(df_balance.columns)
-):
-    df_melted = df_balance.melt(id_vars='nombre', value_vars=['asistencias', 'creditos'],
-                                var_name='tipo', value_name='cantidad')
-
-    chart_comparativo = alt.Chart(df_melted).mark_bar().encode(
-        x=alt.X('nombre:N', title='Persona'),
-        y=alt.Y('cantidad:Q', title='Cantidad'),
-        color=alt.Color('tipo:N', title='Tipo')
-    ).properties(
-        title='Comparativa: Asistencias vs Personas Invitadas'
-    )
-
-    st.altair_chart(chart_comparativo, use_container_width=True)
-else:
-    st.info("No hay datos suficientes para generar la comparativa de asistencias e invitaciones.")
+        st.altair_chart(chart, use_container_width=True)
