@@ -147,16 +147,19 @@ else:
 
 
 
-# Gráfico comparativo entre asistencias e invitaciones
-df_melted = df_balance.melt(id_vars='nombre', value_vars=['asistencias', 'creditos'],
-                            var_name='tipo', value_name='cantidad')
+# Gráfico comparativo entre asistencias e invitaciones (seguro)
+if 'df_balance' in locals() and not df_balance.empty:
+    df_melted = df_balance.melt(id_vars='nombre', value_vars=['asistencias', 'creditos'],
+                                var_name='tipo', value_name='cantidad')
 
-chart_comparativo = alt.Chart(df_melted).mark_bar().encode(
-    x=alt.X('nombre:N', title='Persona'),
-    y=alt.Y('cantidad:Q', title='Cantidad'),
-    color=alt.Color('tipo:N', title='Tipo')
-).properties(
-    title='Comparativa: Asistencias vs Personas Invitadas'
-)
+    chart_comparativo = alt.Chart(df_melted).mark_bar().encode(
+        x=alt.X('nombre:N', title='Persona'),
+        y=alt.Y('cantidad:Q', title='Cantidad'),
+        color=alt.Color('tipo:N', title='Tipo')
+    ).properties(
+        title='Comparativa: Asistencias vs Personas Invitadas'
+    )
 
-st.altair_chart(chart_comparativo, use_container_width=True)
+    st.altair_chart(chart_comparativo, use_container_width=True)
+else:
+    st.info("No hay datos disponibles para generar la comparativa de asistencias e invitaciones.")
