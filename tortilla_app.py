@@ -27,6 +27,43 @@ def guardar_evento(fecha, pagador, asistentes):
     fila = [pagador, fecha, len(asistentes), ", ".join(asistentes)]
     ws_historial.append_row(fila)
 
+# Función para mostrar el grafico
+def mostrar_grafico():
+    datos_historial = ws_historial.get_all_records()
+    if not datos_historial:
+        st.info("No hay datos aún para mostrar el gráfico.")
+        return
+
+    eventos = pd.DataFrame(datos_historial)
+    eventos['asistentes'] = eventos['asistentes'].apply(lambda x: [p.strip() for p in x.split(',') if p.strip()])
+
+    asistencias = {}
+    creditos = {}
+
+    for _, row in eventos.iterrows():
+        for persona in row['asistentes']:
+            asistencias[persona] = asistencias.get(persona, 0) + 1
+        creditos[row['pagador']] = creditos.get(row['pagador'], 0) + len(row['asistentes'])
+
+    nombres = list(set(participantes) | set(asistencias.keys()) | set(creditos.keys()))
+    balance = pd.DataFrame({
+        'nombre': nombres,
+        'asistencias': [asistencias.get(p, 0) for p in nombres],
+        'creditos': [creditos.get(p, 0) for p in nombres]
+    })
+    balance['deuda'] = balance['asistencias'] - balance['creditos']
+    balance = balance.sort_values(by='deuda', ascending=False)
+
+    resumen = balance[['nombre', 'asistencias', 'creditos']].melt(id_vars='nombre', var_name='tipo', value_name='valor')
+    chart = alt.Chart(resumen).mark_bar().encode(
+        x=alt.X('nombre:N', title='Persona'),
+        y=alt.Y('valor:Q', title='Cantidad'),
+        color=alt.Color('tipo:N', title='Tipo')
+    ).properties(
+        title='Resumen de Asistencias e Invitaciones'
+    )
+    mostrar_grafico()
+
 # --- GESTIÓN DE PARTICIPANTES ---
 st.sidebar.header("Gestión de Participantes")
 
@@ -47,6 +84,7 @@ if st.sidebar.button("Eliminar") and eliminar:
 
 # --- NUEVO EVENTO ---
 st.header("Nuevo Evento de Tortilla")
+mostrar_grafico()
 
 asistentes_hoy = st.multiselect("¿Quién asistió hoy?", options=participantes)
 
@@ -96,4 +134,4 @@ if st.button("Calcular quién paga"):
         ).properties(
             title='Resumen de Asistencias e Invitaciones'
         )
-        st.altair_chart(chart, use_container_width=True)
+        mostrar_grafico()
