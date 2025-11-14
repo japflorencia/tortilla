@@ -119,7 +119,9 @@ if st.button("Calcular quién paga"):
         balance['deuda'] = balance['asistencias'] - balance['creditos']
         balance = balance.sort_values(by='deuda', ascending=False)
 
-        pagador = balance.iloc[0]['nombre']
+        # Filtrar balance para incluir solo los asistentes de hoy
+        balance_asistentes = balance[balance['nombre'].isin(asistentes_hoy)]
+        pagador = balance_asistentes.iloc[0]['nombre']
         guardar_evento(str(date.today()), pagador, asistentes_hoy)
 
         st.success(f"Hoy paga **{pagador}** 🍳")
