@@ -6,6 +6,9 @@ import json
 from datetime import date
 import altair as alt
 
+# Version
+APP_VERSION = "1.0.0"
+
 # Configuración de la conexión con Google Sheets
 scope = ["https://spreadsheets.google.com/feeds", "https://www.googleapis.com/auth/drive"]
 creds_dict = json.loads(st.secrets["GOOGLE_SERVICE_ACCOUNT"])
@@ -66,6 +69,10 @@ def mostrar_grafico():
 
 # --- GESTIÓN DE PARTICIPANTES ---
 st.sidebar.header("Gestión de Participantes")
+
+# Display version in sidebar
+st.sidebar.divider()
+st.sidebar.caption(f"🌯 TortillaApp v{APP_VERSION}")
 
 nuevo = st.sidebar.text_input("Añadir participante")
 if st.sidebar.button("Añadir"):
