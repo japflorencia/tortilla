@@ -70,10 +70,6 @@ def mostrar_grafico():
 # --- GESTIÓN DE PARTICIPANTES ---
 st.sidebar.header("Gestión de Participantes")
 
-# Display version in sidebar
-st.sidebar.divider()
-st.sidebar.caption(f"🌯 TortillaApp v{APP_VERSION}")
-
 nuevo = st.sidebar.text_input("Añadir participante")
 if st.sidebar.button("Añadir"):
     if nuevo and nuevo not in participantes:
@@ -136,3 +132,7 @@ if st.button("Calcular quién paga"):
         
         # Mostrar grafico
         mostrar_grafico()
+
+# --- VERSION IN SIDEBAR (AT THE BOTTOM) ---
+st.sidebar.divider()
+st.sidebar.caption(f"🌯 TortillaApp v{APP_VERSION}")
